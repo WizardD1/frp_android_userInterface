@@ -166,3 +166,7 @@ func startService(
 	}
 	return svr.Run(context.Background())
 }
+
+func RunClient(cfgFilePath string) error {
+	return runClient(cfgFilePath)
+}
