@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -32,7 +33,7 @@ import (
 	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/fatedier/frp/pkg/config/v1/validation"
 	"github.com/fatedier/frp/pkg/featuregate"
-	"github.com/fatedier/frp/pkg/util/log"
+	frplog "github.com/fatedier/frp/pkg/util/log"
 	"github.com/fatedier/frp/pkg/util/version"
 )
 
@@ -117,7 +118,7 @@ func runClient(cfgFilePath string) error {
 		return err
 	}
 	if isLegacyFormat {
-		fmt.Printf("WARNING: ini format is deprecated and the support will be removed in the future, " +
+		logPrintln("WARNING: ini format is deprecated and the support will be removed in the future, " +
 			"please use yaml/json/toml format instead!\n")
 	}
 
@@ -129,7 +130,7 @@ func runClient(cfgFilePath string) error {
 
 	warning, err := validation.ValidateAllClientConfig(cfg, proxyCfgs, visitorCfgs)
 	if warning != nil {
-		fmt.Printf("WARNING: %v\n", warning)
+		logPrintln("WARNING: %v\n", warning)
 	}
 	if err != nil {
 		return err
@@ -143,11 +144,11 @@ func startService(
 	visitorCfgs []v1.VisitorConfigurer,
 	cfgFile string,
 ) error {
-	log.InitLogger(cfg.Log.To, cfg.Log.Level, int(cfg.Log.MaxDays), cfg.Log.DisablePrintColor)
+	frplog.InitLogger(cfg.Log.To, cfg.Log.Level, int(cfg.Log.MaxDays), cfg.Log.DisablePrintColor)
 
 	if cfgFile != "" {
-		log.Infof("start frpc service for config file [%s]", cfgFile)
-		defer log.Infof("frpc service for config file [%s] stopped", cfgFile)
+		frplog.Infof("start frpc service for config file [%s]", cfgFile)
+		defer frplog.Infof("frpc service for config file [%s] stopped", cfgFile)
 	}
 	svr, err := client.NewService(client.ServiceOptions{
 		Common:         cfg,
@@ -169,4 +170,19 @@ func startService(
 
 func RunClient(cfgFilePath string) error {
 	return runClient(cfgFilePath)
+}
+
+var logCallback func(string) = nil
+
+func SetLogCallback(callback func(string)) {
+	logCallback = callback
+}
+
+func logPrintln(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	if logCallback != nil {
+		logCallback(msg)
+	} else {
+		log.Println(msg)
+	}
 }
